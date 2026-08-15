@@ -1,0 +1,47 @@
+name: Build Release AAB
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.6'
+          channel: 'stable'
+
+      - name: Initialize Fresh Flutter App
+        run: |
+          mkdir temp_app
+          cd temp_app
+          flutter create --org com.batchcircle --project-name batchcircle .
+          cp -r android ../
+          cd ..
+          rm -rf temp_app
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Android App Bundle (.aab)
+        run: flutter build appbundle --release --no-codesign
+
+      - name: Upload Release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: build/app/outputs/bundle/release/app-release.aab
+          
