@@ -1,0 +1,90 @@
+name: Build Release AAB
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.6'
+          channel: 'stable'
+
+      - name: Create Complete Project & Inject Code
+        run: |
+          flutter create --org com.batchcircle --project-name batchcircle app_project
+          cd app_project
+
+          # Dependencies जोडणे
+          flutter pub add google_sign_in http image_picker in_app_purchase shared_preferences
+
+          # मुख्य Flutter कोड लिहिणे
+          cat << 'EOF' > lib/main.dart
+          import 'package:flutter/material.dart';
+
+          void main() {
+            runApp(const BatchCircleApp());
+          }
+
+          class BatchCircleApp extends StatelessWidget {
+            const BatchCircleApp({super.key});
+
+            @override
+            Widget build(BuildContext context) {
+              return MaterialApp(
+                title: 'BatchCircle',
+                debugShowCheckedModeBanner: false,
+                theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo), useMaterial3: true),
+                home: const HomeScreen(),
+              );
+            }
+          }
+
+          class HomeScreen extends StatelessWidget {
+            const HomeScreen({super.key});
+
+            @override
+            Widget build(BuildContext context) {
+              return Scaffold(
+                appBar: AppBar(title: const Text('BatchCircle'), backgroundColor: Colors.indigo, foregroundColor: Colors.white),
+                body: const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.school_rounded, size: 80, color: Colors.indigo),
+                      SizedBox(height: 16),
+                      Text('BatchCircle', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.indigo)),
+                      SizedBox(height: 8),
+                      Text('Your College. Your Course. Your Circle.', style: TextStyle(fontSize: 15, color: Colors.black54)),
+                    ],
+                  ),
+                ),
+              );
+            }
+          }
+          EOF
+
+          # Release AAB बिल्ड करणे
+          flutter build appbundle --release --no-codesign
+
+          # फाईल बाहेर आणणे
+          mkdir -p ../output
+          cp build/app/outputs/bundle/release/app-release.aab ../output/
+
+      - name: Upload Release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: output/app-release.aab
+          
